@@ -5,18 +5,18 @@ import {faker} from "@faker-js/faker";
 import * as admin from "firebase-admin";
 import {IItem, itemCondition} from "../models/item.";
 
-function getRandomEnumValue<T>(anEnum: T): T[keyof T] {
-  // save enums inside array
-  const enumValues = Object.keys(anEnum) as Array<keyof T>;
+function getRandomEnumValue<T>(anEnum: T): string {
+  const allValues = Object.keys(anEnum) as Array<keyof T>;
 
-  // Generate a random index (max is array length)
-  const randomIndex = Math.floor(Math.random() * enumValues.length);
-  // get the random enum value
+  const newArray = allValues.filter(function(value) {
+    return Number.isNaN(parseInt(value.toString()));
+  });
+  const randomIndex = Math.floor(Math.random() * newArray.length);
 
-  const randomEnumKey = enumValues[randomIndex];
-  return anEnum[randomEnumKey];
-  // if you want to have the key than return randomEnumKey
+  const randomEnumKey = newArray[randomIndex];
+  return randomEnumKey.toString();
 }
+
 
 interface ICollections {
     itemsCollection: admin.firestore.CollectionReference<admin.firestore.DocumentData>;
@@ -48,13 +48,14 @@ export async function createItem(collections: ICollections) {
         address: faker.address.streetAddress(),
       },
       description: faker.commerce.productDescription(),
-      condition: getRandomEnumValue(itemCondition),
+      condition: getRandomEnumValue(itemCondition) as unknown as itemCondition,
       yearManufactured: Math.floor(Math.random() * 16) + 2015,
       yearBought: Math.floor(Math.random() * 16) + 2025,
       itemToExchangeWith: faker.commerce.productName(),
       ownerId: owner.uid,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       images: images,
+      category: faker.commerce.department(),
     };
     await collections.itemsCollection.doc(itemId).set(item);
     return item;
