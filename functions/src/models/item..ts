@@ -13,7 +13,7 @@ export interface IItem {
     images?: string[];
     itemToExchangeWith: string;
     ownerId: string;
-    createdAt: firestore.FieldValue
+    createdAt: firestore.FieldValue | Date;
 }
 
 export enum itemCondition {

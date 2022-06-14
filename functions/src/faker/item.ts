@@ -36,7 +36,8 @@ export async function createItem(collections: ICollections) {
     const itemId = faker.datatype.uuid();
     const images: string[] = [];
     for (let index = 0; index < 5; index++) {
-      images.push(faker.image.imageUrl());
+      const department = faker.commerce.department();
+      images.push(`https://loremflickr.com/640/480/${department}`);
     }
 
     const item: IItem = {
@@ -53,7 +54,7 @@ export async function createItem(collections: ICollections) {
       yearBought: Math.floor(Math.random() * 16) + 2025,
       itemToExchangeWith: faker.commerce.productName(),
       ownerId: owner.uid,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: faker.date.recent(),
       images: images,
       category: faker.commerce.department(),
     };
