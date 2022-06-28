@@ -8,6 +8,7 @@ import * as cors from "cors";
 import {IUser} from "./models/user";
 import {IConversation, IMessage} from "./models/conversation";
 import {sendEmail, truncateString} from "./utils/helpers";
+import {Message} from "firebase-admin/lib/messaging/messaging-api";
 
 admin.initializeApp();
 
@@ -55,7 +56,7 @@ exports.notificationOnMessageCreate = functions.firestore.document("/items/{item
       const userSnapshot = await usersCollection.doc(userId).get();
       if (userSnapshot.exists) {
         const userData = userSnapshot.data() as IUser;
-        const payload = {
+        const payload: Message = {
           token: userData.fcmToken as string,
           notification: {
             title: "New message from " + senderData.name,
