@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable require-jsdoc */
 import * as functions from "firebase-functions";
@@ -5,50 +6,19 @@ import * as admin from "firebase-admin";
 import * as express from "express";
 import * as cors from "cors";
 import {IUser} from "./models/user";
-import {createUser} from "./faker/users";
-import {createItem} from "./faker/item";
-import {IItem} from "./models/item.";
+import {IConversation, IMessage} from "./models/conversation";
+import {sendEmail, truncateString} from "./utils/helpers";
 
 admin.initializeApp();
 
 const db = admin.firestore();
-const auth = admin.auth();
 
 const app = express();
 app.use(cors());
 app.use(express.urlencoded());
 
 const usersCollection = db.collection("users");
-const seedCollection = db.collection("seeds");
-const itemsCollection = db.collection("items");
-
-app.get("/fake-users/:count", async (request, response) => {
-  const count = parseInt(request.params.count);
-  const users: IUser[] = [];
-  if (count >= 1) {
-    for (let index = 0; index < count; index++) {
-      const u = await createUser(auth, {usersCollection, seedCollection});
-      users.push(u);
-    }
-    response.send(users);
-  } else {
-    response.send({error: "invalid count"});
-  }
-});
-
-app.get("/fake-items/:count", async (request, response) => {
-  const count = parseInt(request.params.count);
-  const items: IItem[] = [];
-  if (count >= 1) {
-    for (let index = 0; index < count; index++) {
-      const u = await createItem({itemsCollection, seedCollection});
-      items.push(u);
-    }
-    response.send(items);
-  } else {
-    response.send({error: "invalid count"});
-  }
-});
+const conversationCollection = db.collection("userConversationList");
 
 export const api = functions.https.onRequest(app);
 
@@ -71,3 +41,38 @@ exports.createUserOnRegister = functions.auth.user().onCreate(async (user) => {
     console.log("user creation error", error);
   }
 });
+
+exports.notificationOnMessageCreate = functions.firestore.document("/items/{itemId}/conversations/{conversationId}/messages/{messageId}").onCreate(async (snapshot, context) => {
+  const messageMeta = snapshot.data() as IMessage;
+  const conversationId = context.params.conversationId;
+  const conversationSnapshot = await conversationCollection.doc(conversationId).get();
+  if (conversationSnapshot.exists) {
+    const conversation = conversationSnapshot.data() as IConversation;
+    const toReceiveNotifications = conversation.users.filter((u) => u != messageMeta.sender);
+    const senderData = await (await usersCollection.doc(messageMeta.sender).get()).data() as IUser;
+
+    toReceiveNotifications.forEach(async (userId) => {
+      const userSnapshot = await usersCollection.doc(userId).get();
+      if (userSnapshot.exists) {
+        const userData = userSnapshot.data() as IUser;
+        const payload = {
+          token: userData.fcmToken as string,
+          notification: {
+            title: "New message from " + senderData.name,
+            body: truncateString(messageMeta.content, 240),
+          },
+          data: {
+            body: truncateString(messageMeta.content, 240),
+          },
+        };
+        try {
+          await admin.messaging().send(payload);
+          await sendEmail(userData.email, "You have a new message!");
+        } catch (err: any) {
+          console.log("error", err);
+        }
+      }
+    });
+  }
+});
+
