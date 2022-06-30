@@ -69,10 +69,14 @@ exports.notificationOnMessageCreate = functions.firestore.document("/items/{item
           },
         };
         try {
-          await admin.messaging().send(payload);
           await sendEmail(userData.email, "You have a new message from!");
+        } catch (error) {
+          console.log("error sending email", error);
+        }
+        try {
+          await admin.messaging().send(payload);
         } catch (err: any) {
-          console.log("error", err);
+          console.log("error sending notification", err);
         }
       }
     });
