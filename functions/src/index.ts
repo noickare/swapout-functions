@@ -18,6 +18,7 @@ const app = express();
 app.use(cors());
 app.use(express.urlencoded());
 
+
 const usersCollection = db.collection("users");
 const conversationCollection = db.collection("userConversationList");
 
@@ -42,6 +43,7 @@ exports.createUserOnRegister = functions.auth.user().onCreate(async (user) => {
     console.log("user creation error", error);
   }
 });
+
 
 exports.notificationOnMessageCreate = functions.firestore.document("/items/{itemId}/conversations/{conversationId}/messages/{messageId}").onCreate(async (snapshot, context) => {
   const messageMeta = snapshot.data() as IMessage;
@@ -68,7 +70,7 @@ exports.notificationOnMessageCreate = functions.firestore.document("/items/{item
         };
         try {
           await admin.messaging().send(payload);
-          await sendEmail(userData.email, "You have a new message!");
+          await sendEmail(userData.email, "You have a new message from!");
         } catch (err: any) {
           console.log("error", err);
         }
