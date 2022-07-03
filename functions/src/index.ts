@@ -9,6 +9,9 @@ import {IUser} from "./models/user";
 import {IConversation, IMessage} from "./models/conversation";
 import {sendEmail, truncateString} from "./utils/helpers";
 import {Message} from "firebase-admin/lib/messaging/messaging-api";
+import {v4 as uuidv4} from "uuid";
+import {INotification} from "./models/notifications";
+import {firestore} from "firebase-admin";
 
 admin.initializeApp();
 
@@ -58,6 +61,15 @@ exports.notificationOnMessageCreate = functions.firestore.document("/items/{item
       const userSnapshot = await usersCollection.doc(userId).get();
       if (userSnapshot.exists) {
         const userData = userSnapshot.data() as IUser;
+        const notificationUid = uuidv4();
+        const notification: INotification = {
+          uid: notificationUid,
+          content: "New Message from " + senderData.name || senderData.email.substring(0, 3),
+          seen: false,
+          deepLink: `https://clueswap.com/item/${conversation.itemId}/conversations/${conversation.uid}`,
+          createdAt: firestore.FieldValue.serverTimestamp(),
+        };
+        await usersCollection.doc(userData.uid).collection("notifications").doc(notificationUid).set(notification);
         const payload: Message = {
           token: userData.fcmToken as string,
           notification: {
@@ -69,7 +81,7 @@ exports.notificationOnMessageCreate = functions.firestore.document("/items/{item
           },
         };
         try {
-          await sendEmail(userData.email, "You have a new message from!");
+          await sendEmail(userData.email, "You have a new message");
         } catch (error) {
           console.log("error sending email", error);
         }
